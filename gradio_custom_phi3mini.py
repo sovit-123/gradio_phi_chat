@@ -53,11 +53,11 @@ def generate_next_tokens(user_input):
     template = tokenizer.apply_chat_template(
         chat, 
         tokenize=False, 
-        add_generation_prompt=False
+        add_generation_prompt=True
     )
 
     # prompt =  history + template if len(history) > 1 else template
-    prompt =  history + user_input + '<|end|>\n<|assistant|>\n' if len(history) > 1 else template
+    prompt =  '<s>' + history + user_input + '<|end|>\n<|assistant|>\n' if len(history) > 1 else '<s>' + template
 
     print('Prompt: ', prompt)
     print('*' * 50)
