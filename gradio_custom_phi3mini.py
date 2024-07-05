@@ -26,9 +26,15 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map=device
 )
 
-streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+streamer = TextIteratorStreamer(
+    tokenizer, skip_prompt=True, skip_special_tokens=True
+)
 
-CONTEXT_LENGTH = 3800 # This uses around 9.9GB of GPU memory when highest context length is reached.
+# Context length of 3800 uses around 9.9GB of GPU memory when highest 
+# context length is reached. It can be increased to a higher number for
+# GPUs with more VRAM. However, we need to consider the model's context
+# length as well.
+CONTEXT_LENGTH = 3800
 
 history = ''
 

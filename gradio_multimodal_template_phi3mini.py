@@ -1,7 +1,6 @@
 """
-Gradio multimodal chat template with file upload using Gradio's Chat Interface.
-We do not need to store history manually, just need to 
-tokenize it properly.
+Gradio multimodal chat template with file upload using Gradio Chat Interface.
+We do not need to store history manually, just need to tokenize it properly.
 """
 
 import gradio as gr
@@ -27,28 +26,51 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map=device
 )
 
-streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+streamer = TextIteratorStreamer(
+    tokenizer, skip_prompt=True, skip_special_tokens=True
+)
 
-CONTEXT_LENGTH = 3800 # This uses around 9.9GB of GPU memory when highest context length is reached.
+# Context length of 3800 uses around 9.9GB of GPU memory when highest 
+# context length is reached. It can be increased to a higher number for
+# GPUs with more VRAM. However, we need to consider the model's context
+# length as well.
+CONTEXT_LENGTH = 3800 
+
+def file_state_management(file_path):
+    """
+    Function to load file content into the chat history
+    when a file is uploaded.
+
+    :param file_path: File path from the gradio chat input.
+    """
+    file_content = open(file_path).read()
+    return file_content
 
 def generate_next_tokens(user_input, history):
     print(f"User Input: ", user_input)
     print('History: ', history)
     print('*' * 50)
 
+    # The way we are managing uploaded file and history here:
+    # When the user first uploads the file, the entire content gets
+    # loaded into the prompt for that particular chat turn.
+    # When the next turn comes, right now, we are using the `history`
+    # list from Gradio to load the history again, however, that only contains
+    # the file path. So, we cannot exactly get the content of the file in the
+    # next turn. However, the model may remember the context from its own
+    # reply and user's query. This approach saves a lot of memory as well.
     if len(user_input['files']) == 0:
-        user_input = user_input['text']
+        final_input = user_input['text']
     else:
-        file_content = open(user_input['files'][0]).read()
+        file_content = file_state_management(user_input['files'][0])
         user_text = user_input['text']
-        user_input = f"Based on the given context answer the question.\n"
-        user_input += f"Context: {file_content}\n"
-        user_input += user_text
+        final_input = file_content
+        final_input += user_text
 
     chat = [
         {'role': 'user', 'content': 'Hi'},
         {'role': 'assistant', 'content': 'Hello.'},
-        {'role': 'user', 'content': user_input},
+        {'role': 'user', 'content': final_input},
     ]
 
     template = tokenizer.apply_chat_template(
@@ -57,13 +79,16 @@ def generate_next_tokens(user_input, history):
         add_generation_prompt=True
     )
 
+    # Loading from Gradio's `history` list. If a file was uploaded in the 
+    # previous turn, only the file path remains in the history and not the 
+    # content. Good for saving memory (context) but bad for detailed querying.
     if len(history) == 0:
         prompt = '<s>' + template
     else:
         prompt = '<s>'
         for history_list in history:
             prompt += f"<|user|>\n{history_list[0]}<|end|>\n<|assistant|>\n{history_list[1]}<|end|>\n"
-        prompt += f"<|user|>\n{user_input}<|end|>\n<|assistant|>\n"
+        prompt += f"<|user|>\n{final_input}<|end|>\n<|assistant|>\n"
 
     print('Prompt: ', prompt)
     print('*' * 50)
