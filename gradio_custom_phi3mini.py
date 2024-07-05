@@ -87,7 +87,6 @@ def generate_next_tokens(user_input):
 
         yield final_output
     
-    # history += f"{prompt}{final_output}<|end|>\n<|user|>\n"
     if len(history) > 1:
         history += f"{user_input}<|end|>\n<|assistant|>\n{final_output}<|end|>\n<|user|>\n"
     else:
